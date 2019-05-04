@@ -37,6 +37,7 @@ import (
 	"github.com/tektoncd/pipeline/test/names"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
+	"golang.org/x/xerrors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1142,7 +1143,7 @@ func TestReconcilePodFetchError(t *testing.T) {
 	clients.Kube.PrependReactor("*", "*", func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
 		if action.GetVerb() == "get" && action.GetResource().Resource == "pods" {
 			// handled fetching pods
-			return true, nil, fmt.Errorf("induce failure fetching pods")
+			return true, nil, xerrors.Errorf("induce failure fetching pods")
 		}
 		return false, nil, nil
 	})

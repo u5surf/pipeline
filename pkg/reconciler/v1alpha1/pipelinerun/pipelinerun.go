@@ -37,6 +37,7 @@ import (
 	"github.com/tektoncd/pipeline/pkg/reconciler/v1alpha1/pipelinerun/resources"
 	"github.com/tektoncd/pipeline/pkg/reconciler/v1alpha1/taskrun"
 	"go.uber.org/zap"
+	"golang.org/x/xerrors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -340,7 +341,7 @@ func (c *Reconciler) reconcile(ctx context.Context, pr *v1alpha1.PipelineRun) er
 
 	err = resources.ResolveTaskRuns(c.taskRunLister.TaskRuns(pr.Namespace).Get, pipelineState)
 	if err != nil {
-		return fmt.Errorf("Error getting TaskRuns for Pipeline %s: %s", p.Name, err)
+		return xerrors.Errorf("Error getting TaskRuns for Pipeline %s: %w", p.Name, err)
 	}
 
 	// If the pipelinerun is cancelled, cancel tasks and update status
@@ -366,7 +367,7 @@ func (c *Reconciler) reconcile(ctx context.Context, pr *v1alpha1.PipelineRun) er
 			rprt.TaskRun, err = c.createTaskRun(c.Logger, rprt, pr, as.StorageBasePath(pr))
 			if err != nil {
 				c.Recorder.Eventf(pr, corev1.EventTypeWarning, "TaskRunCreationFailed", "Failed to create TaskRun %q: %v", rprt.TaskRunName, err)
-				return fmt.Errorf("error creating TaskRun called %s for PipelineTask %s from PipelineRun %s: %s", rprt.TaskRunName, rprt.PipelineTask.Name, pr.Name, err)
+				return xerrors.Errorf("error creating TaskRun called %s for PipelineTask %s from PipelineRun %s: %w", rprt.TaskRunName, rprt.PipelineTask.Name, pr.Name, err)
 			}
 		}
 	}
@@ -403,7 +404,7 @@ func (c *Reconciler) updateTaskRunsStatusDirectly(pr *v1alpha1.PipelineRun) erro
 		if err != nil {
 			// If the TaskRun isn't found, it just means it won't be run
 			if !errors.IsNotFound(err) {
-				return fmt.Errorf("error retrieving TaskRun %s: %s", taskRunName, err)
+				return xerrors.Errorf("error retrieving TaskRun %s: %w", taskRunName, err)
 			}
 		} else {
 			prtrs.Status = &tr.Status
@@ -467,7 +468,7 @@ func (c *Reconciler) createTaskRun(logger *zap.SugaredLogger, rprt *resources.Re
 func (c *Reconciler) updateStatus(pr *v1alpha1.PipelineRun) (*v1alpha1.PipelineRun, error) {
 	newPr, err := c.pipelineRunLister.PipelineRuns(pr.Namespace).Get(pr.Name)
 	if err != nil {
-		return nil, fmt.Errorf("Error getting PipelineRun %s when updating status: %s", pr.Name, err)
+		return nil, xerrors.Errorf("Error getting PipelineRun %s when updating status: %w", pr.Name, err)
 	}
 	succeeded := pr.Status.GetCondition(apis.ConditionSucceeded)
 	if succeeded.Status == corev1.ConditionFalse || succeeded.Status == corev1.ConditionTrue {
@@ -485,7 +486,7 @@ func (c *Reconciler) updateStatus(pr *v1alpha1.PipelineRun) (*v1alpha1.PipelineR
 func (c *Reconciler) updateLabels(pr *v1alpha1.PipelineRun) (*v1alpha1.PipelineRun, error) {
 	newPr, err := c.pipelineRunLister.PipelineRuns(pr.Namespace).Get(pr.Name)
 	if err != nil {
-		return nil, fmt.Errorf("Error getting PipelineRun %s when updating labels: %s", pr.Name, err)
+		return nil, xerrors.Errorf("Error getting PipelineRun %s when updating labels: %w", pr.Name, err)
 	}
 	if !reflect.DeepEqual(pr.ObjectMeta.Labels, newPr.ObjectMeta.Labels) {
 		newPr.ObjectMeta.Labels = pr.ObjectMeta.Labels

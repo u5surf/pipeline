@@ -23,6 +23,7 @@ import (
 	"github.com/knative/pkg/apis"
 	"github.com/tektoncd/pipeline/pkg/names"
 	"go.uber.org/zap"
+	"golang.org/x/xerrors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -108,7 +109,7 @@ func GetResourcesFromBindings(p *v1alpha1.Pipeline, pr *v1alpha1.PipelineRun) (m
 	}
 	err := list.IsSame(required, provided)
 	if err != nil {
-		return resources, fmt.Errorf("PipelineRun bound resources didn't match Pipeline: %s", err)
+		return resources, xerrors.Errorf("PipelineRun bound resources didn't match Pipeline: %w", err)
 	}
 
 	for _, resource := range pr.Spec.Resources {
@@ -123,7 +124,7 @@ func getPipelineRunTaskResources(pt v1alpha1.PipelineTask, providedResources map
 		for _, taskInput := range pt.Resources.Inputs {
 			resource, ok := providedResources[taskInput.Resource]
 			if !ok {
-				return inputs, outputs, fmt.Errorf("pipelineTask tried to use input resource %s not present in declared resources", taskInput.Resource)
+				return inputs, outputs, xerrors.Errorf("pipelineTask tried to use input resource %s not present in declared resources", taskInput.Resource)
 			}
 			inputs = append(inputs, v1alpha1.TaskResourceBinding{
 				Name:        taskInput.Name,
@@ -133,7 +134,7 @@ func getPipelineRunTaskResources(pt v1alpha1.PipelineTask, providedResources map
 		for _, taskOutput := range pt.Resources.Outputs {
 			resource, ok := providedResources[taskOutput.Resource]
 			if !ok {
-				return outputs, outputs, fmt.Errorf("pipelineTask tried to use output resource %s not present in declared resources", taskOutput.Resource)
+				return outputs, outputs, xerrors.Errorf("pipelineTask tried to use output resource %s not present in declared resources", taskOutput.Resource)
 			}
 			outputs = append(outputs, v1alpha1.TaskResourceBinding{
 				Name:        taskOutput.Name,
@@ -204,7 +205,7 @@ func ResolvePipelineRun(
 		// Get all the resources that this task will be using, if any
 		inputs, outputs, err := getPipelineRunTaskResources(pt, providedResources)
 		if err != nil {
-			return nil, fmt.Errorf("unexpected error which should have been caught by Pipeline webhook: %v", err)
+			return nil, xerrors.Errorf("unexpected error which should have been caught by Pipeline webhook: %w", err)
 		}
 
 		spec := t.TaskSpec()
@@ -229,7 +230,7 @@ func ResolveTaskRuns(getTaskRun GetTaskRun, state PipelineRunState) error {
 		if err != nil {
 			// If the TaskRun isn't found, it just means it hasn't been run yet
 			if !errors.IsNotFound(err) {
-				return fmt.Errorf("error retrieving TaskRun %s: %s", rprt.TaskRunName, err)
+				return xerrors.Errorf("error retrieving TaskRun %s: %w", rprt.TaskRunName, err)
 			}
 		} else {
 			rprt.TaskRun = taskRun
@@ -336,11 +337,11 @@ func ValidateFrom(state PipelineRunState) error {
 				inputBinding := rprt.ResolvedTaskResources.Inputs[dep.Name]
 				for _, pb := range dep.From {
 					if pb == rprt.PipelineTask.Name {
-						return fmt.Errorf("PipelineTask %s is trying to depend on a PipelineResource from itself", pb)
+						return xerrors.Errorf("PipelineTask %s is trying to depend on a PipelineResource from itself", pb)
 					}
 					depTask := findReferencedTask(pb, state)
 					if depTask == nil {
-						return fmt.Errorf("pipelineTask %s is trying to depend on previous Task %q but it does not exist", rprt.PipelineTask.Name, pb)
+						return xerrors.Errorf("pipelineTask %s is trying to depend on previous Task %q but it does not exist", rprt.PipelineTask.Name, pb)
 					}
 
 					sameBindingExists := false
@@ -350,7 +351,7 @@ func ValidateFrom(state PipelineRunState) error {
 						}
 					}
 					if !sameBindingExists {
-						return fmt.Errorf("from is ambiguous: input %q for PipelineTask %q is bound to %q but no outputs in PipelineTask %q are bound to same resource",
+						return xerrors.Errorf("from is ambiguous: input %q for PipelineTask %q is bound to %q but no outputs in PipelineTask %q are bound to same resource",
 							dep.Name, rprt.PipelineTask.Name, inputBinding.Name, depTask.PipelineTask.Name)
 					}
 				}

@@ -29,6 +29,7 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	"go.uber.org/zap"
+	"golang.org/x/xerrors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -172,11 +173,11 @@ func GetRemoteEntrypoint(cache *Cache, digest string, kubeclient kubernetes.Inte
 	}
 	img, err := getRemoteImage(digest, kubeclient, taskRun)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch remote image %s: %v", digest, err)
+		return nil, xerrors.Errorf("Failed to fetch remote image %s: %w", digest, err)
 	}
 	cfg, err := img.ConfigFile()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get config for image %s: %v", digest, err)
+		return nil, xerrors.Errorf("Failed to get config for image %s: %w", digest, err)
 	}
 	var command []string
 	command = cfg.Config.Entrypoint
@@ -191,7 +192,7 @@ func getRemoteImage(image string, kubeclient kubernetes.Interface, taskRun *v1al
 	// verify the image name, then download the remote config file
 	ref, err := name.ParseReference(image, name.WeakValidation)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse image %s: %v", image, err)
+		return nil, xerrors.Errorf("Failed to parse image %s: %w", image, err)
 	}
 
 	kc, err := k8schain.New(kubeclient, k8schain.Options{
@@ -199,7 +200,7 @@ func getRemoteImage(image string, kubeclient kubernetes.Interface, taskRun *v1al
 		ServiceAccountName: taskRun.Spec.ServiceAccount,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create k8schain: %v", err)
+		return nil, xerrors.Errorf("Failed to create k8schain: %w", err)
 	}
 
 	// this will first try to authenticate using the k8schain,
@@ -208,7 +209,7 @@ func getRemoteImage(image string, kubeclient kubernetes.Interface, taskRun *v1al
 	mkc := authn.NewMultiKeychain(kc)
 	img, err := remote.Image(ref, remote.WithAuthFromKeychain(mkc))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get container image info from registry %s: %v", image, err)
+		return nil, xerrors.Errorf("Failed to get container image info from registry %s: %w", image, err)
 	}
 
 	return img, nil

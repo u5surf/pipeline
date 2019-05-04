@@ -18,11 +18,11 @@ package resources
 
 import (
 	"crypto/rand"
-	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"golang.org/x/xerrors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -52,7 +52,7 @@ var (
 )
 
 func TestTryGetPod(t *testing.T) {
-	err := fmt.Errorf("something went wrong")
+	err := xerrors.Errorf("something went wrong")
 	for _, c := range []struct {
 		desc    string
 		trs     v1alpha1.TaskRunStatus

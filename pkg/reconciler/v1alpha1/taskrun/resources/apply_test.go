@@ -17,11 +17,11 @@ limitations under the License.
 package resources
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
+	"golang.org/x/xerrors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -190,7 +190,7 @@ func (rg *rg) Get(name string) (*v1alpha1.PipelineResource, error) {
 	if pr, ok := rg.resources[name]; ok {
 		return pr, nil
 	}
-	return nil, fmt.Errorf("resource %s does not exist", name)
+	return nil, xerrors.Errorf("resource %s does not exist", name)
 }
 
 func (rg *rg) With(name string, pr *v1alpha1.PipelineResource) *rg {

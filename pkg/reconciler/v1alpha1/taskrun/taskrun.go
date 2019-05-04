@@ -33,6 +33,7 @@ import (
 	"github.com/tektoncd/pipeline/pkg/reconciler/v1alpha1/taskrun/entrypoint"
 	"github.com/tektoncd/pipeline/pkg/reconciler/v1alpha1/taskrun/resources"
 	"go.uber.org/zap"
+	"golang.org/x/xerrors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -427,7 +428,7 @@ func getFailureMessage(pod *corev1.Pod) string {
 func (c *Reconciler) updateStatus(taskrun *v1alpha1.TaskRun) (*v1alpha1.TaskRun, error) {
 	newtaskrun, err := c.taskRunLister.TaskRuns(taskrun.Namespace).Get(taskrun.Name)
 	if err != nil {
-		return nil, fmt.Errorf("Error getting TaskRun %s when updating status: %s", taskrun.Name, err)
+		return nil, xerrors.Errorf("Error getting TaskRun %s when updating status: %w", taskrun.Name, err)
 	}
 	if !reflect.DeepEqual(taskrun.Status, newtaskrun.Status) {
 		newtaskrun.Status = taskrun.Status
@@ -439,7 +440,7 @@ func (c *Reconciler) updateStatus(taskrun *v1alpha1.TaskRun) (*v1alpha1.TaskRun,
 func (c *Reconciler) updateLabels(tr *v1alpha1.TaskRun) (*v1alpha1.TaskRun, error) {
 	newTr, err := c.taskRunLister.TaskRuns(tr.Namespace).Get(tr.Name)
 	if err != nil {
-		return nil, fmt.Errorf("Error getting TaskRun %s when updating labels: %s", tr.Name, err)
+		return nil, xerrors.Errorf("Error getting TaskRun %s when updating labels: %w", tr.Name, err)
 	}
 	if !reflect.DeepEqual(tr.ObjectMeta.Labels, newTr.ObjectMeta.Labels) {
 		newTr.ObjectMeta.Labels = tr.ObjectMeta.Labels
@@ -466,7 +467,7 @@ func (c *Reconciler) createPod(tr *v1alpha1.TaskRun, ts *v1alpha1.TaskSpec, task
 
 	ts, err = createRedirectedTaskSpec(c.KubeClientSet, ts, tr, c.cache, c.Logger)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't create redirected TaskSpec: %v", err)
+		return nil, xerrors.Errorf("couldn't create redirected TaskSpec: %w", err)
 	}
 
 	var defaults []v1alpha1.TaskParam
@@ -479,16 +480,16 @@ func (c *Reconciler) createPod(tr *v1alpha1.TaskRun, ts *v1alpha1.TaskSpec, task
 	// Apply bound resource templating from the taskrun.
 	ts, err = resources.ApplyResources(ts, tr.Spec.Inputs.Resources, c.resourceLister.PipelineResources(tr.Namespace).Get, "inputs")
 	if err != nil {
-		return nil, fmt.Errorf("couldnt apply input resource templating: %s", err)
+		return nil, xerrors.Errorf("couldnt apply input resource templating: %w", err)
 	}
 	ts, err = resources.ApplyResources(ts, tr.Spec.Outputs.Resources, c.resourceLister.PipelineResources(tr.Namespace).Get, "outputs")
 	if err != nil {
-		return nil, fmt.Errorf("couldnt apply output resource templating: %s", err)
+		return nil, xerrors.Errorf("couldnt apply output resource templating: %w", err)
 	}
 
 	pod, err := resources.MakePod(tr, *ts, c.KubeClientSet, c.cache, c.Logger)
 	if err != nil {
-		return nil, fmt.Errorf("translating Build to Pod: %v", err)
+		return nil, xerrors.Errorf("translating Build to Pod: %w", err)
 	}
 
 	return c.KubeClientSet.CoreV1().Pods(tr.Namespace).Create(pod)
@@ -503,7 +504,7 @@ func createRedirectedTaskSpec(kubeclient kubernetes.Interface, ts *v1alpha1.Task
 	// entrypoint which copies logs to the volume
 	err := entrypoint.RedirectSteps(cache, ts.Steps, kubeclient, tr, logger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add entrypoint to steps of TaskRun %s: %v", tr.Name, err)
+		return nil, xerrors.Errorf("failed to add entrypoint to steps of TaskRun %s: %w", tr.Name, err)
 	}
 	// Add the step which will copy the entrypoint into the volume
 	// we are going to be using, so that all of the steps will have

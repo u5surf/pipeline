@@ -24,6 +24,7 @@ import (
 	artifacts "github.com/tektoncd/pipeline/pkg/artifacts"
 	listers "github.com/tektoncd/pipeline/pkg/client/listers/pipeline/v1alpha1"
 	"go.uber.org/zap"
+	"golang.org/x/xerrors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -82,12 +83,12 @@ func AddOutputResources(
 	for _, output := range taskSpec.Outputs.Resources {
 		boundResource, err := getBoundResource(output.Name, taskRun.Spec.Outputs.Resources)
 		if err != nil {
-			return fmt.Errorf("Failed to get bound resource: %s", err)
+			return xerrors.Errorf("Failed to get bound resource: %w", err)
 		}
 
 		resource, err := getResource(boundResource, pipelineResourceLister.PipelineResources(taskRun.Namespace).Get)
 		if err != nil {
-			return fmt.Errorf("Failed to get output pipeline Resource for task %q resource %v; error: %s", taskName, boundResource, err.Error())
+			return xerrors.Errorf("Failed to get output pipeline Resource for task %q resource %v; error: %w", taskName, boundResource, err)
 		}
 		var (
 			resourceContainers []corev1.Container
@@ -105,14 +106,14 @@ func AddOutputResources(
 			{
 				storageResource, err := v1alpha1.NewStorageResource(resource)
 				if err != nil {
-					return fmt.Errorf("task %q invalid storage Pipeline Resource: %q",
+					return xerrors.Errorf("task %q invalid storage Pipeline Resource: %q",
 						taskName,
 						boundResource.ResourceRef.Name,
 					)
 				}
 				resourceContainers, resourceVolumes, err = addStoreUploadStep(taskSpec, storageResource, sourcePath)
 				if err != nil {
-					return fmt.Errorf("task %q invalid Pipeline Resource: %q; invalid upload steps err: %v",
+					return xerrors.Errorf("task %q invalid Pipeline Resource: %q; invalid upload steps err: %w",
 						taskName, boundResource.ResourceRef.Name, err)
 				}
 			}
@@ -124,7 +125,7 @@ func AddOutputResources(
 				}
 				resourceContainers, err = resSpec.GetUploadContainerSpec()
 				if err != nil {
-					return fmt.Errorf("task %q invalid download spec: %q; error %s", taskName, boundResource.ResourceRef.Name, err.Error())
+					return xerrors.Errorf("task %q invalid download spec: %q; error: %w", taskName, boundResource.ResourceRef.Name, err)
 				}
 			}
 		}

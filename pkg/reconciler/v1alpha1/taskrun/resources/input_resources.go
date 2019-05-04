@@ -25,6 +25,7 @@ import (
 	artifacts "github.com/tektoncd/pipeline/pkg/artifacts"
 	listers "github.com/tektoncd/pipeline/pkg/client/listers/pipeline/v1alpha1"
 	"go.uber.org/zap"
+	"golang.org/x/xerrors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -36,7 +37,7 @@ func getBoundResource(resourceName string, boundResources []v1alpha1.TaskResourc
 			return &br, nil
 		}
 	}
-	return nil, fmt.Errorf("couldnt find resource named %q in bound resources %v", resourceName, boundResources)
+	return nil, xerrors.Errorf("couldnt find resource named %q in bound resources %v", resourceName, boundResources)
 }
 
 // AddInputResource reads the inputs resources and adds the corresponding container steps
@@ -74,12 +75,12 @@ func AddInputResource(
 	for _, input := range taskSpec.Inputs.Resources {
 		boundResource, err := getBoundResource(input.Name, taskRun.Spec.Inputs.Resources)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get bound resource: %s", err)
+			return nil, xerrors.Errorf("Failed to get bound resource: %w", err)
 		}
 
 		resource, err := getResource(boundResource, pipelineResourceLister.PipelineResources(taskRun.Namespace).Get)
 		if err != nil {
-			return nil, fmt.Errorf("task %q failed to Get Pipeline Resource: %v: error: %s", taskName, boundResource, err.Error())
+			return nil, xerrors.Errorf("task %q failed to Get Pipeline Resource: %v: error: %w", taskName, boundResource, err)
 		}
 		var (
 			resourceContainers     []corev1.Container
@@ -116,11 +117,11 @@ func AddInputResource(
 				{
 					storageResource, err := v1alpha1.NewStorageResource(resource)
 					if err != nil {
-						return nil, fmt.Errorf("task %q invalid gcs Pipeline Resource: %q: %s", taskName, boundResource.ResourceRef.Name, err.Error())
+						return nil, xerrors.Errorf("task %q invalid gcs Pipeline Resource: %q: %w", taskName, boundResource.ResourceRef.Name, err)
 					}
 					resourceContainers, resourceVolumes, err = addStorageFetchStep(taskSpec, storageResource, dPath)
 					if err != nil {
-						return nil, fmt.Errorf("task %q invalid gcs Pipeline Resource download steps: %q: %s", taskName, boundResource.ResourceRef.Name, err.Error())
+						return nil, xerrors.Errorf("task %q invalid gcs Pipeline Resource download steps: %q: %w", taskName, boundResource.ResourceRef.Name, err)
 					}
 				}
 			default:
@@ -132,7 +133,7 @@ func AddInputResource(
 					resSpec.SetDestinationDirectory(dPath)
 					resourceContainers, err = resSpec.GetDownloadContainerSpec()
 					if err != nil {
-						return nil, fmt.Errorf("task %q invalid resource download spec: %q; error %s", taskName, boundResource.ResourceRef.Name, err.Error())
+						return nil, xerrors.Errorf("task %q invalid resource download spec: %q; error %w", taskName, boundResource.ResourceRef.Name, err)
 					}
 				}
 			}
@@ -186,7 +187,7 @@ func addStorageFetchStep(taskSpec *v1alpha1.TaskSpec, storageResource v1alpha1.P
 func getResource(r *v1alpha1.TaskResourceBinding, getter GetResource) (*v1alpha1.PipelineResource, error) {
 	// Check both resource ref or resource Spec are not present. Taskrun webhook should catch this in validation error.
 	if r.ResourceRef.Name != "" && r.ResourceSpec != nil {
-		return nil, fmt.Errorf("Both ResourseRef and ResourceSpec are defined. Expected only one")
+		return nil, xerrors.Errorf("Both ResourseRef and ResourceSpec are defined. Expected only one")
 	}
 
 	if r.ResourceRef.Name != "" {
@@ -200,7 +201,7 @@ func getResource(r *v1alpha1.TaskResourceBinding, getter GetResource) (*v1alpha1
 			Spec: *r.ResourceSpec,
 		}, nil
 	}
-	return nil, fmt.Errorf("Neither ResourseRef not ResourceSpec is defined")
+	return nil, xerrors.Errorf("Neither ResourseRef not ResourceSpec is defined")
 }
 
 func destinationPath(name, path string) string {

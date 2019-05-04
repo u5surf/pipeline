@@ -23,6 +23,7 @@ import (
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1alpha1"
 	"github.com/tektoncd/pipeline/pkg/system"
 	"go.uber.org/zap"
+	"golang.org/x/xerrors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -127,11 +128,11 @@ func createPVC(pr *v1alpha1.PipelineRun, c kubernetes.Interface) error {
 		if errors.IsNotFound(err) {
 			pvc := getPVCSpec(pr)
 			if _, err := c.CoreV1().PersistentVolumeClaims(pr.Namespace).Create(pvc); err != nil {
-				return fmt.Errorf("failed to claim Persistent Volume %q due to error: %s", pr.Name, err)
+				return xerrors.Errorf("failed to claim Persistent Volume %q due to error: %w", pr.Name, err)
 			}
 			return nil
 		}
-		return fmt.Errorf("failed to get claim Persistent Volume %q due to error: %s", pr.Name, err)
+		return xerrors.Errorf("failed to get claim Persistent Volume %q due to error: %w", pr.Name, err)
 	}
 	return nil
 }
